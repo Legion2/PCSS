@@ -73,6 +73,7 @@ namespace SpaceEngineers.Game.GUI
         private MyGuiControlCheckbox m_checkboxMultithreadedRender;
         private MyGuiControlCheckbox m_checkboxTonemapping;
         private MyGuiControlCheckbox m_checkboxEnableDamageEffects;
+        private MyGuiControlCheckbox m_checkboxPCSS;//---------PCSS Settings----------------
 
         private MyGraphicsSettings m_settingsOld;
         private MyGraphicsSettings m_settingsNew;
@@ -112,6 +113,7 @@ namespace SpaceEngineers.Game.GUI
             var labelGraphicsPresets        = new MyGuiControlLabel(textScale: TEXT_SCALE, text: MyTexts.GetString(MySpaceTexts.ScreenGraphicsOptions_QualityPreset));
             var labelEnableDamageEffects    = new MyGuiControlLabel(textScale: TEXT_SCALE, text: MyTexts.GetString(MySpaceTexts.EnableDamageEffects));
             var labelDx9RenderQuality       = new MyGuiControlLabel(textScale: TEXT_SCALE, text: MyTexts.GetString(MySpaceTexts.RenderQuality));
+            var labelPCSS                   = new MyGuiControlLabel(textScale: TEXT_SCALE, text: "PCSS");//---------PCSS Settings----------------
 
             m_comboRenderer               = new MyGuiControlCombobox(toolTip: MyTexts.GetString(MySpaceTexts.ToolTipVideoOptionsRenderer));
             m_comboGraphicsPresets        = new MyGuiControlCombobox();
@@ -124,6 +126,7 @@ namespace SpaceEngineers.Game.GUI
             m_checkboxHardwareCursor      = new MyGuiControlCheckbox(toolTip: MyTexts.GetString(MySpaceTexts.ToolTipVideoOptionsHardwareCursor));
             m_checkboxRenderInterpolation = new MyGuiControlCheckbox(toolTip: MyTexts.GetString(MySpaceTexts.ToolTipVideoOptionRenderIterpolation));
             m_checkboxMultithreadedRender = new MyGuiControlCheckbox();
+            m_checkboxPCSS                = new MyGuiControlCheckbox();//---------PCSS Settings----------------
             m_checkboxTonemapping         = new MyGuiControlCheckbox();
             m_checkboxEnableDamageEffects = new MyGuiControlCheckbox(toolTip: MyTexts.GetString(MySpaceTexts.ToolTipVideoOptionsEnableDamageEffects));
             m_sliderFov                   = new MyGuiControlSlider(toolTip: MyTexts.GetString(MySpaceTexts.ToolTipVideoOptionsFieldOfView),
@@ -216,6 +219,8 @@ namespace SpaceEngineers.Game.GUI
                 }
                 table.Add(labelMultithreadedRendering, hAlign, vAlign, row, leftCol);
                 table.Add(m_checkboxMultithreadedRender, hAlign, vAlign, row++, rightCol);
+                table.Add(labelPCSS, hAlign, vAlign, row, leftCol);//---------PCSS Settings----------------
+                table.Add(m_checkboxPCSS, hAlign, vAlign, row++, rightCol);//---------PCSS Settings----------------
                 table.Add(labelTonemapping, hAlign, vAlign, row, leftCol);
                 table.Add(m_checkboxTonemapping, hAlign, vAlign, row++, rightCol);
             }
@@ -260,6 +265,7 @@ namespace SpaceEngineers.Game.GUI
                 m_checkboxRenderInterpolation.IsCheckedChanged = onCheckboxChanged;
                 m_checkboxTonemapping.IsCheckedChanged = onCheckboxChanged;
                 m_checkboxEnableDamageEffects.IsCheckedChanged = onCheckboxChanged;
+                m_checkboxPCSS.IsCheckedChanged = onCheckboxChanged;//---------PCSS Settings----------------
 
                 m_sliderFov.ValueChanged = (slider) => OnSettingsChanged();
             }
@@ -301,6 +307,7 @@ namespace SpaceEngineers.Game.GUI
             presetSettings.InterpolationEnabled = m_checkboxRenderInterpolation.IsChecked;
             presetSettings.TonemappingEnabled = m_checkboxTonemapping.IsChecked;
             m_settingsNew.Render = presetSettings;
+            presetSettings.PCSSEnabled = m_checkboxPCSS.IsChecked;//---------PCSS Settings----------------
             WriteSettingsToControls(m_settingsNew);
             MyVideoSettingsManager.Apply(m_settingsNew);
         }
@@ -333,6 +340,7 @@ namespace SpaceEngineers.Game.GUI
                 read.Render.AnisotropicFiltering  = (MyTextureAnisoFiltering)m_comboAnisotropicFiltering.GetSelectedKey();
                 read.Render.FoliageDetails        = (MyFoliageDetails)m_comboFoliageDetails.GetSelectedKey();
                 read.Render.Dx9Quality            = (MyRenderQualityEnum)m_comboDx9RenderQuality.GetSelectedKey();
+                read.Render.PCSSEnabled           = m_checkboxPCSS.IsChecked;//---------PCSS Settings----------------
 
                 restartIsNeeded = read.GraphicsRenderer != graphicsSettings.GraphicsRenderer;
                 graphicsSettings = read;
@@ -351,6 +359,7 @@ namespace SpaceEngineers.Game.GUI
             m_checkboxEnableDamageEffects.IsChecked = graphicsSettings.EnableDamageEffects;
             m_checkboxRenderInterpolation.IsChecked = graphicsSettings.Render.InterpolationEnabled;
             m_checkboxMultithreadedRender.IsChecked = graphicsSettings.Render.MultithreadingEnabled;
+            m_checkboxPCSS.IsChecked = graphicsSettings.Render.PCSSEnabled;//---------PCSS Settings----------------
             m_checkboxTonemapping.IsChecked = graphicsSettings.Render.TonemappingEnabled;
             m_comboAntialiasing.SelectItemByKey((long)graphicsSettings.Render.AntialiasingMode, sendEvent: false);
             m_comboShadowMapResolution.SelectItemByKey((long)graphicsSettings.Render.ShadowQuality, sendEvent: false);

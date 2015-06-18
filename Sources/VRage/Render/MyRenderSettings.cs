@@ -484,6 +484,7 @@ namespace VRageRender
         public MyTextureQuality TextureQuality;
         public MyTextureAnisoFiltering AnisotropicFiltering;
         public MyFoliageDetails FoliageDetails;
+        public bool PCSSEnabled;//-----------PCSS Settings---------------
 
         bool IEquatable<MyRenderSettings1>.Equals(MyRenderSettings1 other)
         {
@@ -501,7 +502,8 @@ namespace VRageRender
                 TonemappingEnabled == other.TonemappingEnabled &&
                 TextureQuality == other.TextureQuality &&
                 AnisotropicFiltering == other.AnisotropicFiltering &&
-                FoliageDetails == other.FoliageDetails;
+                FoliageDetails == other.FoliageDetails &&
+                PCSSEnabled == other.PCSSEnabled;//-----------PCSS Settings---------------
         }
     }
 }

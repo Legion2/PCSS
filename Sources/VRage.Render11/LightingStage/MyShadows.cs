@@ -66,6 +66,7 @@ namespace VRageRender
         static int m_cascadesNum;
         
         internal static float[] m_splitDepth;
+        internal static int[] m_radius;//---------PCSS Settings----------------
         internal static Vector4[] m_cascadeScale = new Vector4[4];
         internal static List<MyShadowmapQuery> m_shadowmapQueries = new List<MyShadowmapQuery>();
         internal static MyProjectionInfo [] m_cascadeInfo = new MyProjectionInfo[8];
@@ -102,6 +103,7 @@ namespace VRageRender
 
             m_cascadesNum = 4;
             m_splitDepth = new float[m_cascadesNum + 1];
+            m_radius = new int[m_cascadesNum];//---------PCSS Settings----------------
 
             m_cascadeResolution = 1024;
             ResizeCascades();
@@ -263,6 +265,13 @@ namespace VRageRender
             m_splitDepth[3] = MyRender11.Settings.CascadesSplit2;
             m_splitDepth[4] = MyRender11.Settings.CascadesSplit3;
 
+            m_radius[0] = 18;//1
+            m_radius[1] = 54;//3
+            m_radius[2] = 270;//5
+            m_radius[3] = 1080;//4
+
+
+
             float unitWidth = 1 / MyEnvironment.Projection.M11;
             float unitHeight = 1 / MyEnvironment.Projection.M22;
             var vertices = new Vector3[]
@@ -325,7 +334,24 @@ namespace VRageRender
                 Vector3.Transform(frustumVerticesWS, ref MyEnvironment.InvView, frustumVerticesWS);
 
                 var bSphere = BoundingSphere.CreateFromPoints(frustumVerticesWS);
-                if (stabilize) 
+
+                if (MyRender11.RenderSettings.PCSSEnabled)//---------PCSS Settings----------------
+                {
+                    bSphere.Center = bSphere.Center.Round();
+                    bSphere.Radius = m_radius[c];
+                    
+                    /*if (c == 0)
+                    {
+                        bSphere.Center = bSphere.Center.Round();
+                        bSphere.Radius = (float)Math.Ceiling(bSphere.Radius);
+                    }
+                    else
+                    {
+                        bSphere.Center = bSphere.Center.Round();
+                        bSphere.Radius = (float)Math.Ceiling(bSphere.Radius);
+                    }*/
+                }
+                else if (stabilize) 
                 { 
                     bSphere.Center = bSphere.Center.Round();
                     bSphere.Radius = (float)Math.Ceiling(bSphere.Radius);
@@ -342,6 +368,13 @@ namespace VRageRender
                 var cascadeProjection = Matrix.CreateOrthographicOffCenter(vMin.X, vMax.X, vMin.Y, vMax.Y, vMax.Z, vMin.Z);
                 cascadesMatrices[c] = lightView * cascadeProjection;
                 
+                Vector3 zero = Vector3.Zero;
+
+                if (MyRender11.RenderSettings.PCSSEnabled && c != 0)//---------PCSS Settings----------------
+                {
+                    zero = Vector3.Transform(Vector3.Zero, Matrix.Invert(cascadesMatrices[c - 1]));
+                }
+
                 var transformed = Vector3.Transform(Vector3.Zero, ref cascadesMatrices[c]) * shadowmapSize / 2;
                 var smOffset = (transformed.Round() - transformed) * 2 / shadowmapSize;
 
@@ -359,7 +392,7 @@ namespace VRageRender
 
                 var d = corner1 - corner0;
 
-                var cascadeScale = 1f / (corner1 - corner0);
+                var cascadeScale = 1f / d;
                 m_cascadeScale[c] = new Vector4(cascadeScale, 0);
 
                 var query = new MyShadowmapQuery();

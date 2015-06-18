@@ -89,6 +89,7 @@ namespace Sandbox.Engine.Utils
         readonly string FOLIAGE_DETAILS = "FoliageDetails";
         readonly string GRAPHICS_RENDERER = "GraphicsRenderer";
         readonly string ENABLE_VOICE_CHAT = "VoiceChat";
+        readonly string PERCENTAGE_CLOSER_SOFT_SHADOWS = "PercentageCloserSoftShadows";//-----------PCSS Settings---------------
 
         public MyConfig(string fileName)
             : base(fileName)
@@ -340,7 +341,19 @@ namespace Sandbox.Engine.Utils
             }
         }
 
-        public bool? Tonemapping
+        public bool? PCSS//-----------PCSS Settings---------------
+        {
+            get { return MyUtils.GetBoolFromString(GetParameterValue(PERCENTAGE_CLOSER_SOFT_SHADOWS)); }
+            set
+            {
+                if (value.HasValue)
+                    SetParameterValue(PERCENTAGE_CLOSER_SOFT_SHADOWS, value.Value);
+                else
+                    RemoveParameterValue(PERCENTAGE_CLOSER_SOFT_SHADOWS);
+            }
+        }
+
+	public bool? Tonemapping
         {
             get { return MyUtils.GetBoolFromString(GetParameterValue(TONEMAPPING)); }
             set
@@ -349,8 +362,8 @@ namespace Sandbox.Engine.Utils
                     SetParameterValue(TONEMAPPING, value.Value);
                 else
                     RemoveParameterValue(TONEMAPPING);
-            }
-        }
+	     }
+	}	
 
         public int? ScreenWidth
         {

@@ -12,12 +12,15 @@ namespace VRageRender
     class MyShadowsResolve : MyScreenPass
     {
         static ComputeShaderId m_gather;
+        static ComputeShaderId m_gather_pcss;//---------PCSS Settings----------------
         static ComputeShaderId m_blur_h;
         static ComputeShaderId m_blur_v;
         const int m_numthreads = 8;
 
         internal static void Init()
         {
+            m_gather_pcss = MyShaders.CreateCs("shadows.hlsl", "write_shadow_pcss", MyShaderHelpers.FormatMacros("NUMTHREADS " + m_numthreads));//---------PCSS Settings----------------
+            
             m_gather = MyShaders.CreateCs("shadows.hlsl", "write_shadow", MyShaderHelpers.FormatMacros("NUMTHREADS " + m_numthreads));
             m_blur_h = MyShaders.CreateCs("shadows.hlsl", "blur", MyShaderHelpers.FormatMacros("NUMTHREADS " + m_numthreads));
             m_blur_v = MyShaders.CreateCs("shadows.hlsl", "blur", MyShaderHelpers.FormatMacros("NUMTHREADS " + m_numthreads, "VERTICAL"));
@@ -25,8 +28,17 @@ namespace VRageRender
 
         internal static void Run()
         {
+            if (MyRender11.RenderSettings.PCSSEnabled)//---------PCSS Settings----------------
+            {
+                RC.SetCS(m_gather_pcss);
+            }
+            else
+            {
+                RC.SetCS(m_gather);
+            }
 
-            RC.SetCS(m_gather);
+
+            //RC.SetCS(m_gather);
             //RC.BindDepthRT(dst, DepthStencilAccess.ReadWrite, null);
             RC.Context.ComputeShader.SetUnorderedAccessView(0, MyRender11.m_shadowsHelper.Uav);
             
