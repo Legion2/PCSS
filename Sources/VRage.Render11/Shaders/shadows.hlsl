@@ -69,6 +69,33 @@ static const float2 RandomRotation[] = {
 	float2(-0.893640, 0.448784)
 };
 
+static const int2 SampleOffset[] = {
+	int2(-1, 0),
+	int2(-1, -1),
+	int2(0, -1),
+	int2(1, -1),
+	int2(1, 0),
+	int2(1, 1),
+	int2(0, 1),
+	int2(-1, 1),
+	int2(-2, 1),
+	int2(-2, 0),
+	int2(-2, -1),
+	int2(-2, -2),
+	int2(-1, -2),
+	int2(0, -2),
+	int2(1, -2),
+	int2(2, -2),
+	int2(2, -1),
+	int2(2, 0),
+	int2(2, 1),
+	int2(2, 2),
+	int2(1, 2),
+	int2(0, 2),
+	int2(-1, 2),
+	int2(-2, 2)
+};
+
 static const uint PoissonSamplesNum = 16;
 static const float FilterSize = 3;
 
@@ -118,6 +145,25 @@ void write_shadow(
 	Output[Texel] = result;
 }
 
+float shadow(float2 offset, int2 texeloffset, float scalexy, float scalez, float distancez)
+{
+	float sunh = 0.005f;
+	float htexelsize = scalexy / 1.9f;//in m
+
+	//if (distancez < 0.02f)
+	//distancez = 0.02f;//in 0 to 1
+	float3 distance = float3((offset + texeloffset) * scalexy, distancez * scalez);//in m
+
+		float sh = sunh * distance.z;//in m
+	float j = sh - htexelsize;//in m
+
+	float2 light = saturate((distance.xy + j) / (sh * 2)) + saturate((j - distance.xy) / (sh * 2));
+
+		return (1 - light.x) * (1 - light.y);
+	//result += 1 - saturate(light.x + light.y);
+	//result += 1 - max(light.x, light.y);
+}
+
 [numthreads(NUMTHREADS_X, NUMTHREADS_Y, 1)]
 void write_shadow_pcss(
 	uint3 dispatchThreadID : SV_DispatchThreadID,
@@ -145,132 +191,112 @@ void write_shadow_pcss(
 	float scalexy = 36.0f / (csm_.cascade_scale[3].x * 1024.f);//t to m for xy
 	int2 texel = lpos.xy * 1024;//in t
 	float2 offset = texel - (lpos.xy * 1024.f) + float2(0.5f, 0.5f);//in t
-	float htexelsize = scalexy / 1.9f;//in m
 	
+	float zpos = 0.0f;
+	float distancez = 0.0f;
+
 	[unroll]
-	for (uint i = 0; i < 25; i++)//cascade 3
+	for (uint i = 0; i < 24; i++)//cascade 3
 	{
-		int2 texeloffset = int2(i / 5 - 2, i % 5 - 2);//in t
-		float zpos = CSM.Load(int4(texel, 3, 0), texeloffset);//in 0 to 1
-		float distancez = lpos.z - zpos;//in 0 to 1
+		//int2 texeloffset = int2(i / 5 - 2, i % 5 - 2);//in t
+		int2 texeloffset = SampleOffset[i].xy;//in t
+		zpos = CSM.Load(int4(texel, 3, 0), texeloffset);//in 0 to 1
+		distancez = lpos.z - zpos;//in 0 to 1
 
-		if (distancez > 0)
+		if (distancez >= 0.1f)
 		{
-			//if (distancez < 0.02f)
-			//distancez = 0.02f;//in 0 to 1
-			float3 distance = float3((offset + texeloffset) * scalexy, distancez * scalez);//in m
-
-			float sh = sunh * distance.z;//in m
-			float j = sh - htexelsize;//in m
-
-			float2 light = saturate((distance.xy + j) / (sh * 2)) + saturate((j - distance.xy) / (sh * 2));
-
-			result += (1 - light.x) * (1 - light.y);
-			//result += 1 - saturate(light.x + light.y);
-			//result += 1 - max(light.x, light.y);
+			result += shadow(offset, texeloffset, scalexy, scalez, distancez);
 		}
 	}
 	
-	if (c_id < 3)//cascade 2
+	zpos = CSM.Load(int4(texel, 3, 0));//in 0 to 1
+	distancez = lpos.z - zpos;//in 0 to 1
+
+	if (c_id < 3 && distancez < 0.2f)//cascade 2
 	{
 		lpos = world_to_shadowmap(pos, csm_.cascade_matrix[2]);
 		scalez = 136.0f / csm_.cascade_scale[2].z;//0 to 1 to m for z
 		scalexy = 36.0f / (csm_.cascade_scale[2].x * 1024.f);//t to m for xy
-		texel = lpos.xy * 1024;//in t
+		texel = lpos.xy * 1024 + float2(0.5f, 0.5f);//in t
 		offset = texel - (lpos.xy * 1024.f) + float2(0.5f, 0.5f);//in t
-		htexelsize = scalexy / 1.9f;//in m
 
 		[unroll]
-		for (uint i = 0; i < 16; i++)
+		for (uint i = 0; i < 15; i++)
 		{
-			int2 texeloffset = int2(i / 4 - 2, i % 4 - 2);//in t
-			float zpos = CSM.Load(int4(texel, 2, 0), texeloffset);//in 0 to 1
-			float distancez = lpos.z - zpos;//in 0 to 1
+			//int2 texeloffset = int2(i / 4 - 2, i % 4 - 2);//in t
+			int2 texeloffset = SampleOffset[i].xy;//in t
+			zpos = CSM.Load(int4(texel, 2, 0), texeloffset);//in 0 to 1
+			distancez = lpos.z - zpos;//in 0 to 1
 
-			if (distancez > 0)
+			if (distancez >= 0.1f)
 			{
-				//if (distancez < 0.02f)
-				//distancez = 0.02f;//in 0 to 1
-				float3 distance = float3((offset + texeloffset) * scalexy, distancez * scalez);//in m
-
-				float sh = sunh * distance.z;//in m
-				float j = sh - htexelsize;//in m
-
-				float2 light = saturate((distance.xy + j) / (sh * 2)) + saturate((j - distance.xy) / (sh * 2));
-
-					result += (1 - light.x) * (1 - light.y);
-				//result += 1 - saturate(light.x + light.y);
-				//result += 1 - max(light.x, light.y);
+				result += shadow(offset, texeloffset, scalexy, scalez, distancez);
 			}
 		}
 
-		if (c_id < 2)//cascade 1
+		zpos = CSM.Load(int4(texel, 2, 0));//in 0 to 1
+		distancez = lpos.z - zpos;//in 0 to 1
+
+		if (c_id < 2 && distancez < 0.2f)//cascade 1
 		{
 			lpos = world_to_shadowmap(pos, csm_.cascade_matrix[1]);
 			scalez = 136.0f / csm_.cascade_scale[1].z;//0 to 1 to m for z
 			scalexy = 36.0f / (csm_.cascade_scale[1].x * 1024.f);//t to m for xy
 			texel = lpos.xy * 1024;//in t
 			offset = texel - (lpos.xy * 1024.f) + float2(0.5f, 0.5f);//in t
-			htexelsize = scalexy / 1.9f;//in m
 
 			[unroll]
-			for (uint i = 0; i < 25; i++)
+			for (uint i = 0; i < 24; i++)
 			{
-				int2 texeloffset = int2(i / 5 - 2, i % 5 - 2);//in t
-				float zpos = CSM.Load(int4(texel, 1, 0), texeloffset);//in 0 to 1
-				float distancez = lpos.z - zpos;//in 0 to 1
+				//int2 texeloffset = int2(i / 5 - 2, i % 5 - 2);//in t
+				int2 texeloffset = SampleOffset[i].xy;//in t
+				zpos = CSM.Load(int4(texel, 1, 0), texeloffset);//in 0 to 1
+				distancez = lpos.z - zpos;//in 0 to 1
 
-				if (distancez > 0)
+				if (distancez >= 0.1f)
 				{
-					//if (distancez < 0.02f)
-					//distancez = 0.02f;//in 0 to 1
-					float3 distance = float3((offset + texeloffset) * scalexy, distancez * scalez);//in m
-
-					float sh = sunh * distance.z;//in m
-					float j = sh - htexelsize;//in m
-
-					float2 light = saturate((distance.xy + j) / (sh * 2)) + saturate((j - distance.xy) / (sh * 2));
-
-						result += (1 - light.x) * (1 - light.y);
-					//result += 1 - saturate(light.x + light.y);
-					//result += 1 - max(light.x, light.y);
+					result += shadow(offset, texeloffset, scalexy, scalez, distancez);
 				}
 			}
 
-			if (c_id < 1)//cascade 0
+			zpos = CSM.Load(int4(texel, 1, 0));//in 0 to 1
+			distancez = lpos.z - zpos;//in 0 to 1
+
+			if (c_id < 1 && distancez < 0.1f)//cascade 0
 			{
 				lpos = world_to_shadowmap(pos, csm_.cascade_matrix[0]);
 				scalez = 136.0f / csm_.cascade_scale[0].z;//0 to 1 to m for z
 				scalexy = 36.0f / (csm_.cascade_scale[0].x * 1024.f);//t to m for xy
-				texel = lpos.xy * 1024;//in t
+				texel = (lpos.xy * 1024) / 3.0f + float2(0.5f, 0.5f);//in t
+				texel *= 3;
 				offset = texel - (lpos.xy * 1024.f) + float2(0.5f, 0.5f);//in t
-				htexelsize = scalexy / 1.9f;//in m
 
 				[unroll]
 				for (uint i = 0; i < 36; i++)
 				{
 					int2 texeloffset = int2(i / 6 - 3, i % 6 - 3);//in t
-					float zpos = CSM.Load(int4(texel, 0, 0), texeloffset);//in 0 to 1
-					float distancez = lpos.z - zpos;//in 0 to 1
+					zpos = CSM.Load(int4(texel, 0, 0), texeloffset);//in 0 to 1
+					distancez = lpos.z - zpos;//in 0 to 1
 
 					if (distancez > 0)
 					{
-						//if (distancez < 0.02f)
-						//distancez = 0.02f;//in 0 to 1
-						float3 distance = float3((offset + texeloffset) * scalexy, distancez * scalez);//in m
-
-						float sh = sunh * distance.z;//in m
-						float j = sh - htexelsize;//in m
-
-						float2 light = saturate((distance.xy + j) / (sh * 2)) + saturate((j - distance.xy) / (sh * 2));
-
-							result += (1 - light.x) * (1 - light.y);
-						//result += 1 - saturate(light.x + light.y);
-						//result += 1 - max(light.x, light.y);
+						result += shadow(offset, texeloffset, scalexy, scalez, distancez);
 					}
 				}
 			}
+			else if (distancez > 0)
+			{
+				result += shadow(offset, int2(0, 0), scalexy, scalez, distancez);
+			}
 		}
+		else if (distancez > 0)
+		{
+			result += shadow(offset, int2(0, 0), scalexy, scalez, distancez);
+		}
+	}
+	else if (distancez > 0)
+	{
+		result += shadow(offset, int2(0, 0), scalexy, scalez, distancez);
 	}
 
 	Output[Texel] = 1 - result;
