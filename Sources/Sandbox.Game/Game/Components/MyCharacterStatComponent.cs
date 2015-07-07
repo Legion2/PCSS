@@ -114,6 +114,10 @@ namespace Sandbox.Game.Components
 					stat.AddEffect(regenEffect);
 				}
 			}
+
+            // MW:TODO change/remove when there is syncing of consuming items
+            if (Entity is MyCharacter)
+                (Entity as MyCharacter).StartSecondarySound(definition.EatingSound, true);
 		}
 
 		public bool TryGetStat(MyStringHash statId, out MyEntityStat outStat)
@@ -143,14 +147,14 @@ namespace Sandbox.Game.Components
 			return m_stats.Remove(statId);
 		}
 
-		public override void OnRemovedFromContainer()
+		public override void OnBeforeRemovedFromContainer()
 		{
 			foreach(var script in m_scripts)
 			{
 				script.Close();
 			}
 
-			base.OnRemovedFromContainer();
+			base.OnBeforeRemovedFromContainer();
 		}
 
 		public bool AddHealth(float amount)

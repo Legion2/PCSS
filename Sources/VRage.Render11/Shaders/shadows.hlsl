@@ -212,7 +212,7 @@ void write_shadow_pcss(
 	zpos = CSM.Load(int4(texel, 3, 0));//in 0 to 1
 	distancez = lpos.z - zpos;//in 0 to 1
 
-	if (c_id < 3 && distancez < 0.2f)//cascade 2
+	if (c_id < 3)//cascade 2
 	{
 		lpos = world_to_shadowmap(pos, csm_.cascade_matrix[2]);
 		scalez = 136.0f / csm_.cascade_scale[2].z;//0 to 1 to m for z
@@ -237,7 +237,7 @@ void write_shadow_pcss(
 		zpos = CSM.Load(int4(texel, 2, 0));//in 0 to 1
 		distancez = lpos.z - zpos;//in 0 to 1
 
-		if (c_id < 2 && distancez < 0.2f)//cascade 1
+		if (c_id < 2)//cascade 1
 		{
 			lpos = world_to_shadowmap(pos, csm_.cascade_matrix[1]);
 			scalez = 136.0f / csm_.cascade_scale[1].z;//0 to 1 to m for z
@@ -262,7 +262,7 @@ void write_shadow_pcss(
 			zpos = CSM.Load(int4(texel, 1, 0));//in 0 to 1
 			distancez = lpos.z - zpos;//in 0 to 1
 
-			if (c_id < 1 && distancez < 0.1f)//cascade 0
+			if (c_id < 1)//cascade 0
 			{
 				lpos = world_to_shadowmap(pos, csm_.cascade_matrix[0]);
 				scalez = 136.0f / csm_.cascade_scale[0].z;//0 to 1 to m for z

@@ -306,20 +306,6 @@ namespace Sandbox.Game.Gui
             {
                 MyGuiAudio.PlaySound(MyGuiSounds.HudClick);
                 SwitchCamera();
-                //if (MySession.IsCameraControlledObject())
-                //{
-                //    //MySession.SetCameraController(MyCameraControllerEnum.ThirdPersonSpectator);
-                //    MySession.Static.CameraController.IsInFirstPersonView = true;
-                //}
-                //else
-                //{
-                //    MySession.Static.CameraController.IsInFirstPersonView = false;
-                //}
-                ////else if (MySession.GetCameraControllerEnum() == MyCameraControllerEnum.ThirdPersonSpectator)
-                ////{
-                ////    if (MySession.ControlledObject is IMyCameraController)
-                ////        MySession.SetCameraController(MyCameraControllerEnum.Entity, MySession.ControlledObject.Entity);
-                ////}
             }
 
             if (MyInput.Static.IsNewGameControlPressed(MyControlsSpace.HELP_SCREEN))
@@ -371,17 +357,13 @@ namespace Sandbox.Game.Gui
                 MyGuiSandbox.AddScreen(new Sandbox.Game.Screens.MyGuiScreenMissionTriggers());
             }
 
-            // HACK! Do NOT add anything that relies on use objects here!
-            // Letting certain use objects which are targeted handle any kind of events, circumventing all normal use object mechanisms.
-            // Only used by ropes (and it should stay that way).
-            var controlledCharacter = controlledObject as MyCharacter;
-            bool handledByUseObject = false;
-            if (controlledCharacter != null && controlledCharacter.UseObject != null)
-            {
-                handledByUseObject = controlledCharacter.UseObject.HandleInput();
-            }
-
             MyStringId context = controlledObject != null ? controlledObject.ControlContext : MySpaceBindingCreator.CX_BASE;
+
+            bool handledByUseObject = false;
+            if (MySession.ControlledEntity is VRage.Game.Entity.UseObject.IMyUseObject)
+            {
+                handledByUseObject = (MySession.ControlledEntity as VRage.Game.Entity.UseObject.IMyUseObject).HandleInput();
+            }
 
             if (controlledObject != null && !handledByUseObject)
             {
@@ -550,7 +532,9 @@ namespace Sandbox.Game.Gui
                     {
                         MyVoiceChatSessionComponent.Static.StartRecording();
                     }
-                    else if (MyControllerHelper.IsControl(context, MyControlsSpace.VOICE_CHAT, MyControlStateType.NEW_RELEASED))
+                    //else if (MyControllerHelper.IsControl(context, MyControlsSpace.VOICE_CHAT, MyControlStateType.NEW_RELEASED))
+                    // TODO: If other key was pressed during VOIP, NEW_RELEASED will return false even if this key was pressed, is this correct? We don't store key states?
+                    else if (MyVoiceChatSessionComponent.Static.IsRecording && !MyControllerHelper.IsControl(context, MyControlsSpace.VOICE_CHAT, MyControlStateType.PRESSED))
                     {
                         MyVoiceChatSessionComponent.Static.StopRecording();
                     }
@@ -677,10 +661,6 @@ namespace Sandbox.Game.Gui
         //Game and editor shares this method
         public void MoveAndRotatePlayerOrCamera()
         {
-            // Don't move camera on screenshot
-            //if (MyGuiSandbox.GetScreenshot() != null)
-              //  return;
-
             MyCameraControllerEnum cce = MySession.GetCameraControllerEnum();
             bool movementAllowedInPause = cce == MyCameraControllerEnum.Spectator;
             bool rotationAllowedInPause = movementAllowedInPause ||
@@ -723,7 +703,7 @@ namespace Sandbox.Game.Gui
 
                     if (!MyInput.Static.IsGameControlPressed(MyControlsSpace.LOOKAROUND))
                     {
-                        MySession.ControlledEntity.MoveAndRotate(moveIndicator, rotationIndicator, rollIndicator);                   
+                        MySession.ControlledEntity.MoveAndRotate(moveIndicator, rotationIndicator, rollIndicator);
                     }
                     else
                     {
@@ -733,10 +713,6 @@ namespace Sandbox.Game.Gui
                     }
                 }
             }
-
-            //if (MyVideoModeManager.IsHardwareCursorUsed() && GetDrawMouseCursor() == false && !MySandboxGame.Static.IsMouseVisible)
-            //MyGuiInput.SetMouseToScreenCenter();
-
         }
 
         private static void SetCameraController()
@@ -968,8 +944,29 @@ namespace Sandbox.Game.Gui
                 MyPostProcessVolumetricSSAO2.Contrast
             );
 
+            Vector3 sunDirection = -MySector.SunProperties.SunDirectionNormalized;
+            if (MySession.Static.Settings.EnableSunRotation)
+            {
+                float angle = 2.0f * MathHelper.Pi * (float)(MySession.Static.ElapsedGameTime.TotalMinutes / MySession.Static.Settings.SunRotationIntervalMinutes);
+                float originalSunCosAngle = Math.Abs(Vector3.Dot(sunDirection, Vector3.Up));
+                Vector3 sunRotationAxis;
+                if (originalSunCosAngle > 0.95f)
+                {
+                    // original sun is too close to the poles
+                    sunRotationAxis = Vector3.Cross(Vector3.Cross(sunDirection, Vector3.Left), sunDirection);
+                }
+                else
+                {
+                    sunRotationAxis = Vector3.Cross(Vector3.Cross(sunDirection, Vector3.Up), sunDirection);
+                }
+                sunDirection = Vector3.Transform(sunDirection, Matrix.CreateFromAxisAngle(sunRotationAxis, angle));
+                sunDirection.Normalize();
+
+                MySector.DirectionToSunNormalized = -sunDirection;
+            }
+
             VRageRender.MyRenderProxy.UpdateRenderEnvironment(
-                -MySector.DirectionToSunNormalized,
+                sunDirection,
                 MySector.SunProperties.SunDiffuse,
                 MySector.SunProperties.BackSunDiffuse,
                 MySector.SunProperties.SunSpecular,
